@@ -1,8 +1,12 @@
-import os
 import asyncio
+import logging
 from httpx import AsyncClient
 from bs4 import BeautifulSoup
 from utils import save_to_firestore, process_response, item_is_valid, get_body, get_form, find_pages, get_max_count, get_start_url
+
+# Logging Configuration (temporary)
+logging.basicConfig(level=logging.INFO)  # Set level to INFO or DEBUG as needed
+logger = logging.getLogger(__name__)
 
 count = 0
 max_count = get_max_count()
@@ -19,17 +23,19 @@ async def fetch_with_retry(client, url, data, page_num=None):
             if response.status_code == 200:
                 return response
             else:
+                logger.error(f"Request failed with status code: {response.status_code}")
                 raise Exception(f"Request failed with status code: {response.status_code}")
         except Exception as e:
             if attempt < max_retries - 1:
-                print(f"Request failed: {e}. Retrying in {retry_delay} seconds...")
+                logger.warning(f"Request failed: {e}. Retrying in {retry_delay} seconds...")
                 await asyncio.sleep(retry_delay)
                 retry_delay *= 2  # Exponential backoff
             else:
                 if page_num is not None:
-                    print(f"Failed to fetch data from Page: {page_num}, Status code: {response.status_code}")
+                    logger.error(f"Failed to fetch data from Page: {page_num}, Status code: {response.status_code}")
                 else:
-                    print(f"Failed to fetch data from {url}: Status code: {response.status_code}")
+                    logger.error(f"Failed to fetch data from {url}: Status code: {response.status_code}")
+                logger.error(f"All retry attempts failed: {e}")
                 raise Exception(f"All retry attempts failed: {e}")
 
 
@@ -45,21 +51,21 @@ async def main():
         )
 
         proxy_url = await proxy_configuration.new_url()
-        Actor.log.info(f"Proxy URL: {proxy_url}")
+        logger.info(f"Proxy URL: {proxy_url}")
 
         # Structure of input is defined in input_schema.json
         actor_input = await Actor.get_input() or {}
-        Actor.log.info(f"Actor Input: {actor_input}")
+        logger.info(f"Actor Input: {actor_input}")
         body = get_body(actor_input)
-        Actor.log.info(f"got Body: {body}")
+        logger.info(f"got body: {body}")
 
         #url = "https://www.car-part.com/cgi-bin/search.cgi"
-        Actor.log.info(f"URL: {url}")
+        logger.info(f"URL: {url}")
 
         async with AsyncClient(proxies=proxy_url) as client:
 
             try:
-                Actor.log.info(f"fetching url with body")
+                logger.info(f"fetching url with body")
                 r = await fetch_with_retry(client, url, body)
                     
                 Actor.log.info(f"extracting soup")
