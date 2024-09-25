@@ -53,6 +53,7 @@ async def scraper():
     logger.info(f"got body: {body}")
     logger.info(f"URL: {url}") # url = "https://www.car-part.com/cgi-bin/search.cgi"
 
+    #async with AsyncClient(proxies=proxy_url) as client:
     async with AsyncClient() as client:
         try:
             logger.info(f"fetching url with body")
