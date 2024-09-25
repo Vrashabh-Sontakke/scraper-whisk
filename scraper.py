@@ -41,19 +41,19 @@ async def fetch_with_retry(client, url, data, page_num=None):
 
 async def scraper():
     global count
-    proxy_url = get_proxy_url()
-    if not proxy_url:
-        logger.error("NGINX Proxy URL not set. Please configure NGINX_PROXY_URL in your environment.")
-        return
-    else: 
-        logger.info(f"Proxy URL: {proxy_url}")
+    # proxy_url = get_proxy_url()
+    # if not proxy_url:
+    #     logger.error("NGINX Proxy URL not set. Please configure NGINX_PROXY_URL in your environment.")
+    #     return
+    # else: 
+    #     logger.info(f"Proxy URL: {proxy_url}")
 
     # Structure of input is defined in input_schema.json
     body = get_body()
     logger.info(f"got body: {body}")
     logger.info(f"URL: {url}") # url = "https://www.car-part.com/cgi-bin/search.cgi"
 
-    async with AsyncClient(proxies=proxy_url) as client:
+    async with AsyncClient() as client:
         try:
             logger.info(f"fetching url with body")
             r = await fetch_with_retry(client, url, body)
