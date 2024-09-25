@@ -1,4 +1,4 @@
 python-dotenv
 beautifulsoup4
 httpx
-firebase_admin
+pymongo

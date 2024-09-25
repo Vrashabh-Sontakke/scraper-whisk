@@ -1,8 +1,9 @@
+import sys
 import asyncio
 import logging
 from httpx import AsyncClient
 from bs4 import BeautifulSoup
-from utils import save_to_firestore, process_response, item_is_valid, get_body, get_form, find_pages, get_max_count, get_start_url
+from utils import save_to_mongodb, process_response, item_is_valid, get_body, get_form, find_pages, get_max_count, get_start_url, get_proxy_url
 
 # Logging Configuration (temporary)
 logging.basicConfig(level=logging.INFO)  # Set level to INFO or DEBUG as needed
@@ -11,7 +12,6 @@ logger = logging.getLogger(__name__)
 count = 0
 max_count = get_max_count()
 url = get_start_url()
-
 lock = asyncio.Lock()  # Lock to synchronize access to count variable
 
 async def fetch_with_retry(client, url, data, page_num=None):
@@ -39,107 +39,58 @@ async def fetch_with_retry(client, url, data, page_num=None):
                 raise Exception(f"All retry attempts failed: {e}")
 
 
-async def main():
-
+async def scraper():
     global count
-
-    async with Actor:
-
-        proxy_configuration = await Actor.create_proxy_configuration(
-            groups=["RESIDENTIAL"],
-            country_code="US",
-        )
-
-        proxy_url = await proxy_configuration.new_url()
+    proxy_url = get_proxy_url()
+    if not proxy_url:
+        logger.error("NGINX Proxy URL not set. Please configure NGINX_PROXY_URL in your environment.")
+        return
+    else: 
         logger.info(f"Proxy URL: {proxy_url}")
 
-        # Structure of input is defined in input_schema.json
-        actor_input = await Actor.get_input() or {}
-        logger.info(f"Actor Input: {actor_input}")
-        body = get_body(actor_input)
-        logger.info(f"got body: {body}")
+    # Structure of input is defined in input_schema.json
+    body = get_body()
+    logger.info(f"got body: {body}")
+    logger.info(f"URL: {url}") # url = "https://www.car-part.com/cgi-bin/search.cgi"
 
-        #url = "https://www.car-part.com/cgi-bin/search.cgi"
-        logger.info(f"URL: {url}")
+    async with AsyncClient(proxies=proxy_url) as client:
+        try:
+            logger.info(f"fetching url with body")
+            r = await fetch_with_retry(client, url, body)
+                
+            logger.info(f"extracting soup")
+            soup = BeautifulSoup(r.text, 'html.parser')
+            form, form_exists = get_form(soup)
+            
+            # Get total number of pages
+            logger.info(f"looking for other pages, fetching url with form")
+            r = await fetch_with_retry(client, url, form)
+            total_pages, page_urls = find_pages(r)
 
-        async with AsyncClient(proxies=proxy_url) as client:
+            if r.status_code == 200 and total_pages != 0 :
 
-            try:
-                logger.info(f"fetching url with body")
-                r = await fetch_with_retry(client, url, body)
+                logger.info(f"Total pages found: {total_pages}")
+            
+                if form_exists == True:
+                    # Get initial form data
+                    form_data = dict(form)
+
+                # Loop through each page
+                for page_num in range(1, total_pages + 1):
                     
-                Actor.log.info(f"extracting soup")
-                soup = BeautifulSoup(r.text, 'html.parser')
-                form, form_exists = get_form(soup, actor_input)
-                
-                # Get total number of pages
-                Actor.log.info(f"looking for other pages, fetching url with form")
-                r = await fetch_with_retry(client, url, form)
-                total_pages, page_urls = find_pages(r)
-
-                if r.status_code == 200 and total_pages != 0 :
-
-                    Actor.log.info(f"Total pages found: {total_pages}")
-                
-                    if form_exists == True:
-                        # Get initial form data
-                        form_data = dict(form)
-
-                    # Loop through each page
-                    for page_num in range(1, total_pages + 1):
-                        
-                        # Process response and scrape data
-
-                        if form_exists == True:
-                            form_data['userPage'] = str(page_num) # Update the 'userPage' parameter with the current page number
-                            Actor.log.info(f"fetching url with form_data and page_num: {page_num}")
-                            r = await fetch_with_retry(client, url, form_data, page_num)
-                        
-                        if form_exists == False:
-                            #body = get_body(actor_input, page_num)
-                            Actor.log.info(f"fetching url with form as body and page_num: {page_num}")
-                            r = await fetch_with_retry(client, url, form, page_num)
-
-                        Actor.log.info(f"processing response and extracting data from soup")
-                        data = await process_response(r)
-
-                        if data and len(data) > 0:
-
-                            async with lock:
-
-                                for item in data:
-
-                                    if item_is_valid(item):
-                                        save_to_firestore(item)
-                                        await Actor.push_data(item)
-                                        Actor.log.info(f'Page {page_num} - Data: {item}')
-                                        count += 1
-
-                                    if count >= max_count:
-                                        Actor.log.info(f'Found {max_count} valid records, exiting the scraper')
-                                        await Actor.exit()
-                                        break
-                                if count == 0:
-                                    Actor.log.info(f"no valid item in data on page: {page_num}")
-                                    Actor.log.info(f"Logging Data for Page: {page_num} : {data}")
-                        else:
-                            Actor.log.info(f"no data found on page: {page_num}")
-
-
-                if r.status_code == 200 and total_pages == 0 :
-
-                    Actor.log.info(f"no other pages found")
-
                     # Process response and scrape data
+
                     if form_exists == True:
-                        Actor.log.info(f"fetching url with form")
-                        r = await fetch_with_retry(client, url, form)
+                        form_data['userPage'] = str(page_num) # Update the 'userPage' parameter with the current page number
+                        logger.info(f"fetching url with form_data and page_num: {page_num}")
+                        r = await fetch_with_retry(client, url, form_data, page_num)
                     
                     if form_exists == False:
-                        Actor.log.info(f"fetching url with form as body")
-                        r = await fetch_with_retry(client, url, form)
+                        #body = get_body(actor_input, page_num)
+                        logger.info(f"fetching url with form as body and page_num: {page_num}")
+                        r = await fetch_with_retry(client, url, form, page_num)
 
-                    Actor.log.info(f"processing response and extracting data from soup")
+                    logger.info(f"processing response and extracting data from soup")
                     data = await process_response(r)
 
                     if data and len(data) > 0:
@@ -149,19 +100,58 @@ async def main():
                             for item in data:
 
                                 if item_is_valid(item):
-                                    save_to_firestore(item)
-                                    await Actor.push_data(item)
-                                    Actor.log.info(f'Data: {item}')
+                                    save_to_mongodb(item)
+                                    print(item)
+                                    logger.info(f'Page {page_num} - Data: {item}')
                                     count += 1
+
                                 if count >= max_count:
-                                    Actor.log.info(f'Found {max_count} valid records, exiting the scraper')
-                                    await Actor.exit()
+                                    logger.info(f'Found {max_count} valid records, exiting the scraper')
+                                    sys.exit(0)
                                     break
                             if count == 0:
-                                Actor.log.info(f"no valid item in data on page")
-                                Actor.log.info(f"Logging Data: {data}")
+                                logger.info(f"no valid item in data on page: {page_num}")
+                                logger.info(f"Logging Data for Page: {page_num} : {data}")
                     else:
-                        Actor.log.info(f"no data found on page")
+                        logger.info(f"no data found on page: {page_num}")
 
-            except Exception as e:
-                Actor.log.error(f'Failed to process request: {e} \n')
+
+            if r.status_code == 200 and total_pages == 0 :
+
+                logger.info(f"no other pages found")
+
+                # Process response and scrape data
+                if form_exists == True:
+                    logger.info(f"fetching url with form")
+                    r = await fetch_with_retry(client, url, form)
+                
+                if form_exists == False:
+                    logger.info(f"fetching url with form as body")
+                    r = await fetch_with_retry(client, url, form)
+
+                logger.info(f"processing response and extracting data from soup")
+                data = await process_response(r)
+
+                if data and len(data) > 0:
+
+                    async with lock:
+
+                        for item in data:
+
+                            if item_is_valid(item):
+                                save_to_mongodb(item)
+                                print(item)
+                                logger.info(f'Data: {item}')
+                                count += 1
+                            if count >= max_count:
+                                logger.info(f'Found {max_count} valid records, exiting the scraper')
+                                sys.exit(0)
+                                break
+                        if count == 0:
+                            logger.info(f"no valid item in data on page")
+                            logger.info(f"Logging Data: {data}")
+                else:
+                    logger.info(f"no data found on page")
+
+        except Exception as e:
+            logger.error(f'Failed to process request: {e} \n')
