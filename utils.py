@@ -71,14 +71,14 @@ def get_form(car_input, soup):
                 
                 if side and radio_input.get('name') == 'dummyVar':
 
-                    if side == 'Left' and 'Left' in label:
+                    if side == 'Left' and ('LH' in label or 'Left' in label):
                         logger.info(f"going with side: {side}, label: {label}")
                         logger.info(f"value: {value}")
                         form_data['userInterchange'] = value
                         form_data['dummyVar'] = value
                         logger.info(f"updating form_data")
 
-                    if side == 'Right' and 'RH' in label:
+                    if side == 'Right' and ('RH' in label or 'Right' in label):
                         logger.info(f"going with side: {side}, label: {label}")
                         logger.info(f"value: {value}")
                         form_data['userInterchange'] = value

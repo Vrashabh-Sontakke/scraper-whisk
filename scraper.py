@@ -94,6 +94,7 @@ async def scraper(car_input):
                         r = await fetch_with_retry(client, url, form, page_num)
 
                     logger.info(f"processing response and extracting data from soup")
+                    logger.info(f"r:{r}")
                     data = await process_response(r)
 
                     if data and len(data) > 0:
