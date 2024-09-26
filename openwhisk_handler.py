@@ -24,9 +24,9 @@ def main(params):
 if __name__ == "__main__":
     params = {
         "vin": "4T1BF22K5WU057633",
-        "part_type": "Steering Pump",
+        "part_type": "Fender",
         "zip_code": "77009",
-        "side": ""
+        "side": "Left"
     }
     response = main(params)
     print(response)  # Print the response for debugging

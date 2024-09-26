@@ -205,13 +205,12 @@ async def process_response(response):
 def find_pages(response):
     total_pages = 0
     soup = BeautifulSoup(response.content, 'html.parser')
-    logger.info(f"here is the soup: {soup}")
+    #logger.info(f"here is the soup: {soup}")
     urls = soup.findAll('a')
-    logger.info(f"urls: {urls}")
+    #logger.info(f"urls: {urls}")
     urls = [u.get('href') for u in urls if u.get('href')]
-    logger.info(f"urls: {urls}")
+    #logger.info(f"urls: {urls}")
     page_urls = [f'https://www.car-part.com{u}' for u in urls if 'search.cgi?' and 'userPreference=zip' and 'userPage' in u]
-    logger.info(f"page_urls: {page_urls}")
 
     if page_urls:
         logger.info(f"found other pages")

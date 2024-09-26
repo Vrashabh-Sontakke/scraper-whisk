@@ -1152,13 +1152,22 @@
             "title": "Side",
             "type": "string",
             "description": "Side of the door",
-            "editor": "textfield"
+            "editor": "select",
+            "enum": [
+                "Left",
+                "Right"
+            ],
+            "enumTitles": [
+                "Left",
+                "Right"
+            ]
         }
 
     },
     
     "required": [
         "vin",
-        "part_type"
+        "part_type",
+        "zip_code"
     ]
 }

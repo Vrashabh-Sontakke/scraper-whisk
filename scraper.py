@@ -68,6 +68,8 @@ async def scraper(car_input):
             r = await fetch_with_retry(client, url, form)
             total_pages, page_urls = find_pages(r)
 
+            logger.info(f"page_urls: {page_urls}")
+
             if r.status_code == 200 and total_pages != 0 :
 
                 logger.info(f"Total pages found: {total_pages}")
