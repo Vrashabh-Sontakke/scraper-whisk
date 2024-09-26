@@ -4,7 +4,6 @@ from pymongo import MongoClient
 import logging
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
-from config import vin, part_type, zip_code, side  # Import from config
 
 # Logging Configuration (temporary)
 logging.basicConfig(level=logging.INFO)  # Set level to INFO or DEBUG as needed
@@ -24,13 +23,16 @@ def get_start_url():
 # Constructs the body for the POST request based on input parameters.
 # =========================================================================================================================================================================================================================================================================================================================
 
-def get_body(page_num=None):
+def get_body(car_input, page_num=None):
+    vin = car_input.get('vin')
+    part_type = car_input.get('part_type')
+    zip_code = car_input.get('zip_code')
     page_num = page_num or 1
     body = f'userDate=Select+Year&userVIN={vin}&userModel=Select+Make%2FModel&userPart={quote_plus(part_type)}&userLocation=All+States&userPreference=zip&userZip={zip_code}&userPage={page_num}&userInterchange=None&userDate2=Ending+Year&userSearch=int&Search+Car+Part+Inventory.x=26&Search+Car+Part+Inventory.y=19'
     return body
 
 
-def get_form(soup):
+def get_form(car_input, soup):
     form = soup.find('form', {'id': 'MainForm'})
     if not form:
         logger.info(f"No MainForm found, trying form")
@@ -64,17 +66,19 @@ def get_form(soup):
                 label = radio_input.next_sibling.text.strip()
 
                 logger.info(f"radio_input: id:{id}, label: {label}, value: {value}")
+
+                side = car_input.get('side')
                 
                 if side and radio_input.get('name') == 'dummyVar':
 
-                    if side == 'Left' and ('LH' or 'Left' in label):
+                    if side == 'Left' and 'Left' in label:
                         logger.info(f"going with side: {side}, label: {label}")
                         logger.info(f"value: {value}")
                         form_data['userInterchange'] = value
                         form_data['dummyVar'] = value
                         logger.info(f"updating form_data")
 
-                    if side == 'Right' and ('RH' or 'Right' in label):
+                    if side == 'Right' and 'RH' in label:
                         logger.info(f"going with side: {side}, label: {label}")
                         logger.info(f"value: {value}")
                         form_data['userInterchange'] = value
@@ -201,9 +205,14 @@ async def process_response(response):
 def find_pages(response):
     total_pages = 0
     soup = BeautifulSoup(response.content, 'html.parser')
+    logger.info(f"here is the soup: {soup}")
     urls = soup.findAll('a')
+    logger.info(f"urls: {urls}")
     urls = [u.get('href') for u in urls if u.get('href')]
+    logger.info(f"urls: {urls}")
     page_urls = [f'https://www.car-part.com{u}' for u in urls if 'search.cgi?' and 'userPreference=zip' and 'userPage' in u]
+    logger.info(f"page_urls: {page_urls}")
+
     if page_urls:
         logger.info(f"found other pages")
         for url in page_urls:

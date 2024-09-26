@@ -1,6 +1,5 @@
 import asyncio
 from scraper import scraper
-from config import set_config
 
 # OpenWhisk handler function
 def main(params):
@@ -9,11 +8,15 @@ def main(params):
     zip_code = params.get('zip_code')
     side = params.get('side')
 
-    # Set configuration
-    set_config(vin, part_type, zip_code, side)
+    car_input = {
+        "vin": vin,
+        "part_type": part_type,
+        "zip_code": zip_code,
+        "side": side
+    }
     
     # Start the scraping process
-    asyncio.run(scraper())
+    asyncio.run(scraper(car_input))
 
     return {"status": "task started"}
 
@@ -21,7 +24,7 @@ def main(params):
 if __name__ == "__main__":
     params = {
         "vin": "4T1BF22K5WU057633",
-        "part_type": "Tail Light",
+        "part_type": "Steering Pump",
         "zip_code": "77009",
         "side": ""
     }

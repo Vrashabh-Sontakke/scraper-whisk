@@ -39,7 +39,7 @@ async def fetch_with_retry(client, url, data, page_num=None):
                 raise Exception(f"All retry attempts failed: {e}")
 
 
-async def scraper():
+async def scraper(car_input):
     global count
     # proxy_url = get_proxy_url()
     # if not proxy_url:
@@ -49,7 +49,7 @@ async def scraper():
     #     logger.info(f"Proxy URL: {proxy_url}")
 
     # Structure of input is defined in input_schema.json
-    body = get_body()
+    body = get_body(car_input)
     logger.info(f"got body: {body}")
     logger.info(f"URL: {url}") # url = "https://www.car-part.com/cgi-bin/search.cgi"
 
@@ -61,7 +61,7 @@ async def scraper():
                 
             logger.info(f"extracting soup")
             soup = BeautifulSoup(r.text, 'html.parser')
-            form, form_exists = get_form(soup)
+            form, form_exists = get_form(car_input, soup)
             
             # Get total number of pages
             logger.info(f"looking for other pages, fetching url with form")
