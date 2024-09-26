@@ -68,7 +68,7 @@ async def scraper(car_input):
             r = await fetch_with_retry(client, url, form)
             total_pages, page_urls = find_pages(r)
 
-            logger.info(f"page_urls: {page_urls}")
+            #logger.info(f"page_urls: {page_urls}")
 
             if r.status_code == 200 and total_pages != 0 :
 
@@ -96,6 +96,7 @@ async def scraper(car_input):
                     logger.info(f"processing response and extracting data from soup")
                     logger.info(f"r:{r}")
                     data = await process_response(r)
+                    logger.info(f"data: {data}")
 
                     if data and len(data) > 0:
 

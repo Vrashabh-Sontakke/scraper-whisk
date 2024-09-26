@@ -196,6 +196,7 @@ def parse_table(tables):
 
 async def process_response(response):
     soup = BeautifulSoup(response.content, 'html.parser')
+    #logger.info(f"soup: {soup}")
     tables = soup.findAll('table')
     data = parse_table(tables)
     # get_count(data)
